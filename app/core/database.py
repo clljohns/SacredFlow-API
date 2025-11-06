@@ -1,11 +1,38 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+# ================================================================
+# File: app/core/database.py
+# Description: Configures async SQLAlchemy database connection
+# Author: Clint Johnson
+# Project: SacredFlow API
+# Created: 2025-11-06
+# ================================================================
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.config import settings
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+# ---------------------------------------------------------------
+# 🧠 Database Engine Setup
+# Using asyncpg driver for PostgreSQL connections
+# ---------------------------------------------------------------
+engine = create_async_engine(
+    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
+    echo=False,
+    future=True
+)
 
+# ---------------------------------------------------------------
+# 🧠 Session Factory
+# Each request gets its own async database session
+# ---------------------------------------------------------------
+async_session_factory = async_sessionmaker(
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession
+)
+
+# ---------------------------------------------------------------
+# 🧠 Dependency Injection (used in FastAPI routes)
+# Provides a session that auto-closes after use
+# ---------------------------------------------------------------
 async def get_session() -> AsyncSession:
-    async with async_session() as session:
+    async with async_session_factory() as session:
         yield session
-
