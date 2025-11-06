@@ -39,7 +39,9 @@ cors_origins = [
 # before applying redirect/CORS logic.
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
-app.add_middleware(HTTPSRedirectMiddleware)
+if settings.ENV.lower() != "development":
+    app.add_middleware(HTTPSRedirectMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
