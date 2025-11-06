@@ -7,7 +7,9 @@
 # ================================================================
 
 from fastapi import FastAPI
-from app.routes import system, square, slack, analytics, db_check
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.routes import analytics, communications, db_check, slack, square, system
 
 # ---------------------------------------------------------------
 # 🧠 Initialize FastAPI App
@@ -19,12 +21,30 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------
+# 🧠 CORS Configuration
+# ---------------------------------------------------------------
+cors_origins = []
+if settings.CORS_ORIGINS:
+    cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+else:
+    cors_origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------
 # 🧠 Include API Routers
 # ---------------------------------------------------------------
 app.include_router(system.router)
 app.include_router(square.router)
 app.include_router(slack.router)
 app.include_router(analytics.router)
+app.include_router(communications.router)
 app.include_router(db_check.router)  # ✅ New DB health check route
 
 # ---------------------------------------------------------------

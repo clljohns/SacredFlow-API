@@ -7,4 +7,8 @@
 # ================================================================
 
 from sqlalchemy.orm import declarative_base
+
 Base = declarative_base()
+
+# Lazily expose models for Alembic / metadata discovery
+from app.models.communication import Communication  # noqa: E402,F401
