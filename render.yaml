@@ -1,3 +1,11 @@
+# ================================================================
+# File: render.yaml
+# Path: render.yaml
+# Description: Render.com deployment configuration for the SacredFlow API.
+# Author: Clint Johnson
+# Project: SacredFlow API
+# ================================================================
+
 services:
   - type: web
     name: sacredflow-api
@@ -20,4 +28,3 @@ services:
         sync: false
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
-

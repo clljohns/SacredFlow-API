@@ -1,3 +1,11 @@
+# ================================================================
+# File: env.py
+# Path: migrations/env.py
+# Description: Alembic migration environment using the SacredFlow async engine.
+# Author: Clint Johnson
+# Project: SacredFlow API
+# ================================================================
+
 from logging.config import fileConfig
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection

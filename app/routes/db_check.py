@@ -1,10 +1,10 @@
-# ============================================================
-# File: app/routes/db_check.py
-# Description: Simple FastAPI route to verify DB connectivity
-# and fetch rows from the test_table using SQLAlchemy async API.
+# ================================================================
+# File: db_check.py
+# Path: app/routes/db_check.py
+# Description: Diagnostics route verifying database connectivity and fetching rows.
 # Author: Clint Johnson
-# Project: SacredFlow
-# ============================================================
+# Project: SacredFlow API
+# ================================================================
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession

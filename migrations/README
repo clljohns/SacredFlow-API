@@ -1,1 +1,9 @@
+================================================
+File: README
+Path: migrations/README
+Description: Notes on the SacredFlow Alembic migration configuration.
+Author: Clint Johnson
+Project: SacredFlow API
+================================================
+
 Generic single-database configuration.

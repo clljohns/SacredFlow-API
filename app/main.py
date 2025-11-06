@@ -1,9 +1,9 @@
 # ================================================================
-# File: app/main.py
-# Description: FastAPI entry point for SacredFlow API
+# File: main.py
+# Path: app/main.py
+# Description: FastAPI entry point that wires SacredFlow routers and monitoring.
 # Author: Clint Johnson
 # Project: SacredFlow API
-# Created: 2025-11-06
 # ================================================================
 
 from fastapi import FastAPI
@@ -36,3 +36,10 @@ async def root():
     Returns a simple status message confirming that the API is alive.
     """
     return {"message": "SacredFlow API is alive 🔮"}
+
+# ============================================================
+# Monitoring Integration
+# ============================================================
+from app.routes.monitoring import router as monitoring_router, instrumentator
+app.include_router(monitoring_router)
+instrumentator.instrument(app).expose(app)

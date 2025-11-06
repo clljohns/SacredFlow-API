@@ -1,3 +1,11 @@
+# ================================================================
+# File: config.py
+# Path: app/core/config.py
+# Description: Centralizes SacredFlow configuration via Pydantic settings.
+# Author: Clint Johnson
+# Project: SacredFlow API
+# ================================================================
+
 import os
 from pydantic_settings import BaseSettings
 
@@ -11,4 +19,3 @@ class Settings(BaseSettings):
     ENV: str = os.getenv("ENV", "development")
 
 settings = Settings()
-

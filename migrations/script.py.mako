@@ -1,3 +1,11 @@
+## ================================================================
+## File: script.py.mako
+## Path: migrations/script.py.mako
+## Description: Template for Alembic revision scripts within SacredFlow.
+## Author: Clint Johnson
+## Project: SacredFlow API
+## ================================================================
+
 """${message}
 
 Revision ID: ${up_revision}

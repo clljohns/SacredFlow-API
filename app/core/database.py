@@ -1,9 +1,9 @@
 # ================================================================
-# File: app/core/database.py
-# Description: Configures async SQLAlchemy database connection
+# File: database.py
+# Path: app/core/database.py
+# Description: Configures the async SQLAlchemy engine and session dependency.
 # Author: Clint Johnson
 # Project: SacredFlow API
-# Created: 2025-11-06
 # ================================================================
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
