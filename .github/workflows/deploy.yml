@@ -1,0 +1,51 @@
+name: Deploy SacredFlow API
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Build Docker image
+      run: |
+        docker build -t sacredflow-api .
+
+    # --- Optional: Render Deployment ---
+    - name: Deploy to Render
+      if: ${{ secrets.RENDER_API_KEY != null }}
+      run: |
+        curl -X POST https://api.render.com/deploy/srv-xxxxxxxxxx?key=${{ secrets.RENDER_API_KEY }}
+
+    # --- Optional: Google Cloud Run Deployment ---
+    - name: Deploy to Cloud Run
+      if: ${{ secrets.GCP_PROJECT_ID != null }}
+      env:
+        PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        SERVICE: sacredflow-api
+        REGION: us-central1
+      run: |
+        gcloud auth activate-service-account --key-file <(echo "${{ secrets.GCP_SA_KEY }}")
+        gcloud config set project $PROJECT_ID
+        gcloud run deploy $SERVICE \
+          --source . \
+          --region $REGION \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 512Mi
+
