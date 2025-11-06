@@ -77,6 +77,7 @@ def _apply_filters(
     return stmt
 
 
+@router.get("", response_model=List[CommunicationRead])
 @router.get("/", response_model=List[CommunicationRead])
 async def list_communications(
     limit: int = Query(50, ge=1, le=500),
@@ -101,6 +102,7 @@ async def list_communications(
 
 
 @router.get("/unread-count")
+@router.get("/unread-count/")
 async def unread_count(session: AsyncSession = Depends(get_session)) -> Dict[str, int]:
     stmt = select(func.count()).select_from(Communication).filter(Communication.is_read.is_(False))
     result = await session.execute(stmt)
@@ -118,6 +120,7 @@ async def get_communication(
     return CommunicationRead.model_validate(record)
 
 
+@router.post("", response_model=CommunicationRead, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=CommunicationRead, status_code=status.HTTP_201_CREATED)
 async def create_communication(
     payload: CommunicationCreate,

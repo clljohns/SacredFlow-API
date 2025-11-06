@@ -8,6 +8,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.core.config import settings
 from app.routes import analytics, communications, db_check, slack, square, system
 
@@ -23,12 +25,21 @@ app = FastAPI(
 # ---------------------------------------------------------------
 # 🧠 CORS Configuration
 # ---------------------------------------------------------------
-cors_origins = []
-if settings.CORS_ORIGINS:
-    cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
-else:
-    cors_origins = ["*"]
+default_cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://malulani.co",
+]
 
+cors_origins = [
+    origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
+] if settings.CORS_ORIGINS else default_cors_origins
+
+# Ensure the original client scheme/host from Render's proxy is respected
+# before applying redirect/CORS logic.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
+app.add_middleware(HTTPSRedirectMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
