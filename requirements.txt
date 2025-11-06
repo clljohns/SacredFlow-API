@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic[email]
+sqlalchemy[asyncio]
+psycopg2-binary
+alembic
+aiohttp
+httpx
+structlog
+slack_sdk
+python-multipart
+jinja2
+
