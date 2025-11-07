@@ -155,9 +155,19 @@ async def create_payment(payload: PaymentIntentRequest):
 
     errors = result.errors if result else []
     logger.error("Square create_payment failed: %s", errors)
+
+    error_categories = {err.get("category") for err in errors if isinstance(err, dict)}
+    proxied_status = (
+        status.HTTP_502_BAD_GATEWAY
+        if error_categories & {"API_ERROR", "AUTHENTICATION_ERROR"}
+        else status.HTTP_400_BAD_REQUEST
+    )
     raise HTTPException(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        detail="Unable to create payment with Square.",
+        status_code=proxied_status,
+        detail={
+            "message": "Unable to create payment with Square.",
+            "errors": errors,
+        },
     )
 
 
