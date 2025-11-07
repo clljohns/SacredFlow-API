@@ -2,14 +2,16 @@
 # File: payments.py
 # Path: app/routes/payments.py
 # Description: Square payment processing and webhook endpoints.
-# Works with squareup v43.2.0.20251016 (typed Payment objects)
+# Works with squareup v38.x+ (Client / PaymentsApi)
 # ================================================================
 
-from fastapi import APIRouter, HTTPException
-from app.core.config import settings
-from square.client import Square
-from square.environment import SquareEnvironment
 import logging
+
+from fastapi import APIRouter, HTTPException
+
+from app.core.config import settings
+from square.client import Client
+from square.http.auth.o_auth_2 import BearerAuthCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -18,21 +20,21 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 # ---------------------------------------------------------------
 # 🧩 Environment Resolution
 # ---------------------------------------------------------------
-def _resolve_square_environment(value: str | None) -> SquareEnvironment:
+def _resolve_square_environment(value: str | None) -> str:
     """Normalize environment string for Square SDK."""
     if not value:
-        return SquareEnvironment.SANDBOX
+        return "sandbox"
     value = value.strip().upper()
     if value in {"PRODUCTION", "PROD", "LIVE"}:
-        return SquareEnvironment.PRODUCTION
-    return SquareEnvironment.SANDBOX
+        return "production"
+    return "sandbox"
 
 
 # ---------------------------------------------------------------
 # 💳 Initialize Square client
 # ---------------------------------------------------------------
-square = Square(
-    token=settings.SQUARE_SECRET_KEY,  # ✅ correct for squareup 43.x
+square = Client(
+    bearer_auth_credentials=BearerAuthCredentials(settings.SQUARE_SECRET_KEY),
     environment=_resolve_square_environment(settings.SQUARE_ENVIRONMENT),
 )
 
@@ -46,33 +48,18 @@ async def list_payments():
     Handles both dict and typed-object responses depending on SDK version.
     """
     try:
-        pager = square.payments.list(limit=10)
-        payments = []
-
-        for item in pager:
-            # item may be a dict or a typed Payment model
-            if isinstance(item, dict):
-                payments.extend(item.get("payments", []))
-            elif hasattr(item, "payments"):
-                # typed response object — convert to dict
-                payments.extend([
-                    p.to_dict() if hasattr(p, "to_dict") else vars(p)
-                    for p in getattr(item, "payments", [])
-                ])
-            elif hasattr(item, "to_dict"):
-                # single object fallback
-                payments.append(item.to_dict())
-            else:
-                payments.append(vars(item))
-
-            if len(payments) >= 10:
-                break
-
-        return payments[:10]
-
-    except Exception as e:
+        result = square.payments.list_payments(limit=10)
+        if result.is_success():
+            body = result.body or {}
+            return body.get("payments", [])
+        error_payload = result.errors if result else []
+        logger.error("Square API error when listing payments: %s", error_payload)
+        raise HTTPException(status_code=502, detail="Failed to retrieve payments from Square.")
+    except HTTPException:
+        raise
+    except Exception as exc:
         logger.exception("Error fetching Square payments.")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ---------------------------------------------------------------
