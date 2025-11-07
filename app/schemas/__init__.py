@@ -14,3 +14,8 @@ from app.schemas.communication import (  # noqa: F401
     CommunicationUpdate,
 )
 from app.schemas.checkout import CheckoutLinkRead, CheckoutLinkUpsert  # noqa: F401
+from app.schemas.payment import (  # noqa: F401
+    PaymentConfirmRequest,
+    PaymentCreateRequest,
+    PaymentRead,
+)

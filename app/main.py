@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from app.core.config import settings
-from app.routes import analytics, checkout, communications, db_check, slack, square, system
+from app.routes import analytics, checkout, communications, db_check, payments, slack, square, system
 
 # ---------------------------------------------------------------
 # 🧠 Initialize FastAPI App
@@ -69,6 +69,7 @@ app.include_router(slack.router)
 app.include_router(analytics.router)
 app.include_router(communications.router)
 app.include_router(checkout.router)
+app.include_router(payments.router)
 app.include_router(db_check.router)  # ✅ New DB health check route
 
 # ---------------------------------------------------------------

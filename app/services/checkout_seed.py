@@ -14,6 +14,7 @@ from app.models.checkout import SquareCheckoutLink
 
 
 def _bundle_defaults():
+    """Default Square checkout bundles to seed."""
     return [
         {
             "slug": "subscription",
@@ -30,19 +31,6 @@ def _bundle_defaults():
             "sort_order": 0,
         },
         {
-            "slug": "one-time",
-            "title": "One-Time Sacred Synergy",
-            "description": "Single bundle checkout with Apple Pay, Google Pay, or card.",
-            "price": "$99",
-            "url": settings.SQUARE_ONE_TIME_CHECKOUT_URL,
-            "plan_type": "one_time",
-            "features": [
-                "Perfect for gifting",
-                "Real-time Square tracking",
-            ],
-            "sort_order": 1,
-        },
-        {
             "slug": "family",
             "title": "Double Sacred Synergy Bundle",
             "description": "Gift-ready double bundle with automatic shipping upgrades.",
@@ -53,7 +41,7 @@ def _bundle_defaults():
                 "Multiple recipients supported",
                 "Priority fallbacks with Square",
             ],
-            "sort_order": 2,
+            "sort_order": 1,
         },
     ]
 
@@ -62,15 +50,18 @@ async def seed_checkout_links(session: AsyncSession) -> List[SquareCheckoutLink]
     """Ensure checkout links exist based on environment configuration."""
     bundles = _bundle_defaults()
     created = []
+
     for bundle in bundles:
         if not bundle["url"]:
             continue
+
         existing = await session.execute(
             select(SquareCheckoutLink).where(SquareCheckoutLink.slug == bundle["slug"])
         )
         record = existing.scalar_one_or_none()
+
         if record:
-            # Update url/price/description in case env changed.
+            # Update in case environment variables have changed
             record.url = bundle["url"]
             record.price = bundle["price"]
             record.description = bundle["description"]
@@ -87,4 +78,5 @@ async def seed_checkout_links(session: AsyncSession) -> List[SquareCheckoutLink]
         await session.commit()
         for item in created:
             await session.refresh(item)
+
     return created

@@ -15,7 +15,7 @@ from app.models.checkout import SquareCheckoutLink
 from app.schemas import CheckoutLinkRead, CheckoutLinkUpsert
 from app.services.checkout_seed import seed_checkout_links
 
-router = APIRouter(prefix="/square/checkouts", tags=["Square Checkout"])
+router = APIRouter(prefix="/api/square/checkouts", tags=["Square Checkout"])
 
 
 @router.get("/", response_model=List[CheckoutLinkRead])
