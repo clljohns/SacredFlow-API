@@ -52,4 +52,4 @@ watchfiles==1.1.1
 websockets==15.0.1
 yarl==1.22.0
 prometheus-fastapi-instrumentator==7.1.0
-squareup==38.0.0.20240515
+squareup==38.0.0.20240821

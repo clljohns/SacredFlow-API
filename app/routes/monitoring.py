@@ -44,9 +44,48 @@ async def health_check():
     return {"status": "ok", "service": "SacredFlow API", "uptime": "✅ healthy"}
 
 # -------------- Instrumentator (custom callback) ------------
+def _resolve_path(info: Info) -> str:
+    """Prometheus instrumentation Info doesn't always expose `.path` depending on version."""
+    if hasattr(info, "modified_path") and info.modified_path:
+        return info.modified_path
+    if hasattr(info, "path") and info.path:
+        return info.path
+    if hasattr(info, "request") and info.request:
+        try:
+            return info.request.url.path
+        except Exception:
+            pass
+    scope = getattr(info, "scope", None) or {}
+    if isinstance(scope, dict):
+        return scope.get("path") or scope.get("raw_path") or "unknown"
+    return "unknown"
+
+
+def _resolve_method(info: Info) -> str:
+    if hasattr(info, "method") and info.method:
+        return info.method
+    scope = getattr(info, "scope", None) or {}
+    if isinstance(scope, dict) and scope.get("method"):
+        return scope["method"]
+    return "UNKNOWN"
+
+
 def record_latency(info: Info) -> None:
-    # Some versions use `modified_path` when grouping paths
-    path = getattr(info, "modified_path", info.path)
-    REQUEST_LATENCY.labels(method=info.method, path=path).observe(info.latency)
+    path = _resolve_path(info)
+    method = _resolve_method(info)
+    latency = next(
+        (
+            value
+            for value in (
+                getattr(info, "latency", None),
+                getattr(info, "modified_duration", None),
+                getattr(info, "duration", None),
+                getattr(info, "modified_duration_without_streaming", None),
+            )
+            if value is not None
+        ),
+        0.0,
+    )
+    REQUEST_LATENCY.labels(method=method, path=path).observe(latency)
 
 instrumentator = Instrumentator().add(record_latency)
