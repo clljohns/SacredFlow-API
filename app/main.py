@@ -6,7 +6,7 @@
 # Project: SacredFlow API
 # ================================================================
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -63,14 +63,24 @@ app.add_middleware(
 # ---------------------------------------------------------------
 # 🧠 Include API Routers
 # ---------------------------------------------------------------
-app.include_router(system.router)
-app.include_router(square.router)
-app.include_router(slack.router)
-app.include_router(analytics.router)
-app.include_router(communications.router)
-app.include_router(checkout.router)
-app.include_router(payments.router)
-app.include_router(db_check.router)  # ✅ New DB health check route
+routers = [
+    system.router,
+    square.router,
+    slack.router,
+    analytics.router,
+    communications.router,
+    checkout.router,
+    payments.router,
+    db_check.router,
+]
+
+api_router = APIRouter(prefix="/api")
+
+for router in routers:
+    app.include_router(router)
+    api_router.include_router(router)
+
+app.include_router(api_router)
 
 # ---------------------------------------------------------------
 # 🧠 Root Endpoint
