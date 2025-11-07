@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     APP_NAME: str = "SacredFlow API"
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./sacredflow.db")
     SQUARE_SECRET_KEY: str = os.getenv("SQUARE_SECRET_KEY", "")
+    SQUARE_ENVIRONMENT: str = os.getenv("SQUARE_ENVIRONMENT", "sandbox")
+    SQUARE_LOCATION_ID: str = os.getenv("SQUARE_LOCATION_ID", "")
+    SQUARE_APPLICATION_ID: str = os.getenv("SQUARE_APPLICATION_ID", "")
+    SQUARE_SUBSCRIPTION_CHECKOUT_URL: str = os.getenv("SQUARE_SUBSCRIPTION_CHECKOUT_URL", "")
+    SQUARE_ONE_TIME_CHECKOUT_URL: str = os.getenv("SQUARE_ONE_TIME_CHECKOUT_URL", "")
+    SQUARE_FAMILY_CHECKOUT_URL: str = os.getenv("SQUARE_FAMILY_CHECKOUT_URL", "")
     SQUARE_CHAT_WEBHOOK_URL: str = os.getenv("SQUARE_CHAT_WEBHOOK_URL", "")
     SQUARE_CHAT_BEARER_TOKEN: str = os.getenv("SQUARE_CHAT_BEARER_TOKEN", "")
     INBOX_FORWARD_WEBHOOK_URL: str = os.getenv("INBOX_FORWARD_WEBHOOK_URL", "")

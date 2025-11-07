@@ -13,3 +13,4 @@ from app.schemas.communication import (  # noqa: F401
     CommunicationRead,
     CommunicationUpdate,
 )
+from app.schemas.checkout import CheckoutLinkRead, CheckoutLinkUpsert  # noqa: F401
