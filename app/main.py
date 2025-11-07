@@ -8,8 +8,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.core.config import settings
 from app.routes import analytics, communications, db_check, slack, square, system
 
@@ -35,9 +35,19 @@ cors_origins = [
     origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
 ] if settings.CORS_ORIGINS else default_cors_origins
 
-# Ensure the original client scheme/host from Render's proxy is respected
+class ForwardedProtoMiddleware(BaseHTTPMiddleware):
+    """Align ASGI scope scheme with proxy forwarded proto header."""
+
+    async def dispatch(self, request, call_next):
+        forwarded_proto = request.headers.get("x-forwarded-proto")
+        if forwarded_proto:
+            request.scope["scheme"] = forwarded_proto
+        return await call_next(request)
+
+
+# Ensure the original client scheme from Render's proxy is respected
 # before applying redirect/CORS logic.
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+app.add_middleware(ForwardedProtoMiddleware)
 
 if settings.ENV.lower() != "development":
     app.add_middleware(HTTPSRedirectMiddleware)
