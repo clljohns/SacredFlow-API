@@ -82,6 +82,26 @@ class PaymentConfirmationRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+VALID_COUNTRY_CODES = {
+    "AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ",
+    "BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR",
+    "IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC",
+    "CO","KM","CD","CG","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO",
+    "EC","EG","SV","GQ","ER","EE","SZ","ET","FK","FO","FJ","FI","FR","GF","PF","TF",
+    "GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY",
+    "HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM",
+    "JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY",
+    "LI","LT","LU","MO","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX",
+    "FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI",
+    "NE","NG","NU","NF","MK","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH",
+    "PN","PL","PT","PR","QA","RO","RU","RW","RE","BL","SH","KN","LC","MF","PM","VC",
+    "WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS",
+    "SS","ES","LK","SD","SR","SJ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK",
+    "TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU",
+    "VE","VN","VG","VI","WF","EH","YE","ZM","ZW"
+}
+
+
 class PaymentAddress(BaseModel):
     line1: str = Field(..., alias="line1", min_length=2)
     line2: Optional[str] = Field(default=None, alias="line2")
@@ -100,7 +120,7 @@ def _to_square_address(address: PaymentAddress) -> Dict[str, str]:
         "locality": address.city,
         "administrative_district_level_1": address.state,
         "postal_code": address.postal_code,
-        "country": (address.country or "US").upper(),
+        "country": _normalize_country(address.country),
     }
 
 
@@ -116,6 +136,34 @@ def _sanitize_metadata(metadata: Dict[str, Any] | None) -> Dict[str, str]:
         else:
             sanitized[key] = json.dumps(value)
     return sanitized
+
+
+def _normalize_country(code: Optional[str]) -> str:
+    if not code:
+        return "US"
+    upper = code.upper()
+    if upper in VALID_COUNTRY_CODES:
+        return upper
+    return "US"
+
+
+def _normalize_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if not digits:
+        return None
+    if digits.startswith("00"):
+        digits = digits[2:]
+    if digits.startswith("+"):
+        digits = digits[1:]
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    if len(digits) == 10:
+        return "+1" + digits
+    if digits.startswith("+"):
+        return digits
+    return "+" + digits
 
 # ---------------------------------------------------------------
 # 💰 List Payments (Typed Response Compatible)
@@ -183,8 +231,9 @@ async def create_payment(payload: PaymentIntentRequest):
 
     if payload.customer_email:
         body["buyer_email_address"] = payload.customer_email
-    if payload.customer_phone:
-        body["buyer_phone_number"] = payload.customer_phone
+    normalized_phone = _normalize_phone(payload.customer_phone)
+    if normalized_phone:
+        body["buyer_phone_number"] = normalized_phone
     if payload.customer_name:
         body["billing_address"] = body.get("billing_address", {})
         body["billing_address"]["first_name"] = payload.customer_name.split(" ", 1)[0]
@@ -194,8 +243,8 @@ async def create_payment(payload: PaymentIntentRequest):
 
     if payload.customer_name:
         body["metadata"].setdefault("customerName", payload.customer_name)
-    if payload.customer_phone:
-        body["metadata"].setdefault("customerPhone", payload.customer_phone)
+    if normalized_phone:
+        body["metadata"].setdefault("customerPhone", normalized_phone)
     if payload.customer_email:
         body["metadata"].setdefault("customerEmail", payload.customer_email)
 
