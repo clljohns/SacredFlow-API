@@ -4,7 +4,14 @@
 # Description: Square payment processing and webhook endpoints.
 # Works with squareup v38.x+ (Client / PaymentsApi)
 # ================================================================
+# File: payments.py
+# Path: app/routes/payments.py
+# Description: Square payment processing and webhook endpoints.
+# Works with squareup v38.x+ (Client / PaymentsApi)
+# ================================================================
+from __future__ import annotations
 
+import json
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, Optional
@@ -12,7 +19,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status
 from app.core.config import settings
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, constr
+from requests import RequestException
 from square.client import Client
 from square.http.auth.o_auth_2 import BearerAuthCredentials
 
@@ -50,6 +58,9 @@ class PaymentIntentRequest(BaseModel):
     amount: Decimal = Field(..., gt=0)
     plan_type: Optional[str] = Field(default=None, alias="planType")
     customer_email: Optional[EmailStr] = Field(default=None, alias="customerEmail")
+    customer_name: Optional[str] = Field(default=None, alias="customerName")
+    customer_phone: Optional[str] = Field(default=None, alias="customerPhone")
+    customer_address: Optional["PaymentAddress"] = Field(default=None, alias="customerAddress")
     metadata: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(populate_by_name=True)
@@ -69,6 +80,42 @@ class PaymentConfirmationRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class PaymentAddress(BaseModel):
+    line1: str = Field(..., alias="line1", min_length=2)
+    line2: Optional[str] = Field(default=None, alias="line2")
+    city: str = Field(..., alias="city", min_length=2)
+    state: str = Field(..., alias="state", min_length=2)
+    postal_code: str = Field(..., alias="postalCode", min_length=3)
+    country: constr(min_length=2, max_length=2) = Field(default="US", alias="country")  # type: ignore[valid-type]
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+def _to_square_address(address: PaymentAddress) -> Dict[str, str]:
+    return {
+        "address_line_1": address.line1,
+        "address_line_2": address.line2,
+        "locality": address.city,
+        "administrative_district_level_1": address.state,
+        "postal_code": address.postal_code,
+        "country": (address.country or "US").upper(),
+    }
+
+
+def _sanitize_metadata(metadata: Dict[str, Any] | None) -> Dict[str, str]:
+    sanitized: Dict[str, str] = {}
+    if not metadata:
+        return sanitized
+    for key, value in metadata.items():
+        if value is None:
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            sanitized[key] = str(value)
+        else:
+            sanitized[key] = json.dumps(value)
+    return sanitized
 
 # ---------------------------------------------------------------
 # 💰 List Payments (Typed Response Compatible)
@@ -136,11 +183,49 @@ async def create_payment(payload: PaymentIntentRequest):
 
     if payload.customer_email:
         body["buyer_email_address"] = payload.customer_email
-    if payload.metadata:
-        body["metadata"] = payload.metadata
+    if payload.customer_phone:
+        body["buyer_phone_number"] = payload.customer_phone
+    if payload.customer_name:
+        body["billing_address"] = body.get("billing_address", {})
+        body["billing_address"]["first_name"] = payload.customer_name.split(" ", 1)[0]
+        if " " in payload.customer_name:
+            body["billing_address"]["last_name"] = payload.customer_name.split(" ", 1)[1]
+    body["metadata"] = _sanitize_metadata(payload.metadata)
+
+    if payload.customer_name:
+        body["metadata"].setdefault("customerName", payload.customer_name)
+    if payload.customer_phone:
+        body["metadata"].setdefault("customerPhone", payload.customer_phone)
+    if payload.customer_email:
+        body["metadata"].setdefault("customerEmail", payload.customer_email)
+
+    if payload.customer_address:
+        square_address = _to_square_address(payload.customer_address)
+        body["billing_address"] = {**square_address, **body.get("billing_address", {})}
+        body["shipping_address"] = square_address
+        body["metadata"].setdefault(
+            "customerAddress",
+            json.dumps(
+                {
+                    "line1": payload.customer_address.line1,
+                    "line2": payload.customer_address.line2,
+                    "city": payload.customer_address.city,
+                    "state": payload.customer_address.state,
+                    "postalCode": payload.customer_address.postal_code,
+                    "country": payload.customer_address.country,
+                }
+            ),
+        )
 
     logger.info("Creating Square payment for plan %s", payload.plan_type or "n/a")
-    result = square.payments.create_payment(body)
+    try:
+        result = square.payments.create_payment(body)
+    except RequestException as exc:
+        logger.exception("Square create_payment request timed out.")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Square did not respond in time. Please retry the payment.",
+        ) from exc
 
     if result.is_success():
         payment = (result.body or {}).get("payment", {})
@@ -162,10 +247,24 @@ async def create_payment(payload: PaymentIntentRequest):
         if error_categories & {"API_ERROR", "AUTHENTICATION_ERROR"}
         else status.HTTP_400_BAD_REQUEST
     )
+
+    primary_message = None
+    if errors:
+        first_error = errors[0]
+        if isinstance(first_error, dict):
+            primary_message = (
+                first_error.get("detail")
+                or first_error.get("message")
+                or first_error.get("code")
+            )
+        else:
+            primary_message = str(first_error)
+
+    detail_message = primary_message or "Square rejected the payment request."
     raise HTTPException(
         status_code=proxied_status,
         detail={
-            "message": "Unable to create payment with Square.",
+            "message": detail_message,
             "errors": errors,
         },
     )
