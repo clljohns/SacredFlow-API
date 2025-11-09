@@ -11,7 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from app.core.config import settings
-from app.routes import analytics, checkout, communications, db_check, payments, slack, square, system
+from app.routes import (
+    analytics,
+    catalog,
+    checkout,
+    communications,
+    db_check,
+    payments,
+    slack,
+    square,
+    system,
+)
 
 # ---------------------------------------------------------------
 # 🧠 Initialize FastAPI App
@@ -68,6 +78,7 @@ routers = [
     square.router,
     slack.router,
     analytics.router,
+    catalog.router,
     communications.router,
     checkout.router,
     payments.router,

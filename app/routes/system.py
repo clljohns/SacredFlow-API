@@ -8,8 +8,15 @@
 
 from fastapi import APIRouter
 
+from app.core.square import square_healthcheck
+
 router = APIRouter()
 
 @router.get("/health", tags=["system"])
 async def health_check():
-    return {"status": "ok", "service": "SacredFlow API"}
+    square_status = await square_healthcheck()
+    return {
+        "status": "ok",
+        "service": "SacredFlow API",
+        "square": square_status,
+    }
