@@ -27,34 +27,15 @@ from app.core.database import get_session
 from app.models.payments import Payment
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, constr
 from requests import RequestException
-from square.client import Client
-from square.http.auth.o_auth_2 import BearerAuthCredentials
+from app.core.square import (
+    SquareConfigurationError,
+    call_square,
+    get_square_client,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
-
-# ---------------------------------------------------------------
-# 🧩 Environment Resolution
-# ---------------------------------------------------------------
-def _resolve_square_environment(value: str | None) -> str:
-    """Normalize environment string for Square SDK."""
-    if not value:
-        return "sandbox"
-    value = value.strip().upper()
-    if value in {"PRODUCTION", "PROD", "LIVE"}:
-        return "production"
-    return "sandbox"
-
-
-# ---------------------------------------------------------------
-# 💳 Initialize Square client
-# ---------------------------------------------------------------
-square = Client(
-    bearer_auth_credentials=BearerAuthCredentials(settings.SQUARE_SECRET_KEY),
-    environment=_resolve_square_environment(settings.SQUARE_ENVIRONMENT),
-)
-
 
 # ---------------------------------------------------------------
 # 📦 Request / Response Schemas
@@ -354,13 +335,19 @@ async def list_payments():
     Handles both dict and typed-object responses depending on SDK version.
     """
     try:
-        result = square.payments.list_payments(limit=10)
+        client = get_square_client()
+        result = await call_square(
+            "payments.list_payments", client.payments.list_payments, limit=10
+        )
         if result.is_success():
             body = result.body or {}
             return body.get("payments", [])
         error_payload = result.errors if result else []
         logger.error("Square API error when listing payments: %s", error_payload)
         raise HTTPException(status_code=502, detail="Failed to retrieve payments from Square.")
+    except SquareConfigurationError as exc:
+        logger.error("Square configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -444,7 +431,13 @@ async def create_payment(
 
     logger.info("Creating Square payment for plan %s", payload.plan_type or "n/a")
     try:
-        result = square.payments.create_payment(body)
+        client = get_square_client()
+        result = await call_square(
+            "payments.create_payment", client.payments.create_payment, body
+        )
+    except SquareConfigurationError as exc:
+        logger.error("Square configuration error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except RequestException as exc:
         logger.exception("Square create_payment request timed out.")
         raise HTTPException(
